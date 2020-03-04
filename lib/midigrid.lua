@@ -196,8 +196,12 @@ function midigrid:all(brightness)
         for row = 1, midigrid.rows do
             for col = 1, midigrid.cols do
                 note = grid_notes[row][col]
-                -- the result of the fn call becomes the arg to `_brightness_to_buffer`
-                _brightness_to_buffer(note, vel, config:all_led_sysex(vel))
+                if caps["sysex"] then
+                  -- the result of the fn call becomes the arg to `_brightness_to_buffer`
+                  _brightness_to_buffer(note, vel, config:all_led_sysex(vel))
+                else
+                  _brightness_to_buffer(note, vel, nil)
+                end
             end
         end
     end
@@ -212,8 +216,12 @@ function midigrid:led(col, row, brightness)
         if midigrid.device then
             note = grid_notes[row][col]
             if note then
+              if caps["sysex"] then
                 -- the result of the fn call becomes the arg to `_brightness_to_buffer`
                 _brightness_to_buffer(note, vel, config:led_sysex(note, vel))
+              else
+                _brightness_to_buffer(note, vel, nil)
+              end
             else
                 print('no note found! coordinates... x: ' .. col .. ' y: ' .. row .. ' z: ' .. brightness)
             end
