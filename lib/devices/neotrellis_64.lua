@@ -16,4 +16,6 @@ trellis.grid_notes= {
 
 trellis.brightness_map = {0, 9, 18, 27, 36, 45, 54, 64, 73, 82, 91, 100, 109, 118, 127}
 
+trellis.quad_leds = {}
+
 return trellis
