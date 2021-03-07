@@ -9,6 +9,21 @@ launchpad.auxcol = {89,79,69,59,49,39,29,19}
 launchpad.auxrow = {91,92,93,94,95,96,97,98}
 launchpad.quad_leds = {notes = {91,92,93,94}}
 
+launchpad.cc_event_handlers = {}
+launchpad.cc_event_handlers[91] = function(self,val) self:change_quad(1) end
+launchpad.cc_event_handlers[92] = function(self,val) self:change_quad(2) end
+launchpad.cc_event_handlers[93] = function(self,val) self:change_quad(3) end
+launchpad.cc_event_handlers[94] = function(self,val) self:change_quad(4) end
+
+function launchpad:cc_handler(vgrid,midi_msg)
+  if self.cc_event_handlers[midi_msg.cc] then
+    self.cc_event_handlers[midi_msg.cc](self,midi_msg.val)
+  else
+    -- Ignore unhandled CC messages
+    --print('Unhandled CC '.. midi_msg.cc)
+  end
+end
+
 launchpad.grid_notes= {
   {81,82,83,84,85,86,87,88},
   {71,72,73,74,75,76,77,78},

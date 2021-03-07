@@ -29,11 +29,6 @@ local device={
 
   --as of now, order is important here
   quad_leds = {notes = {64,65,66,67}},
-  -- quad_leds.notes[64] = 1,
-  -- quad_leds.notes[65] = 2,
-  -- quad_leds.notes[66] = 3,
-  -- quad_leds.notes[67] = 4,
-
 
   -- the currently displayed quad on the device
   current_quad = 1,

@@ -11,7 +11,8 @@ launchpad.grid_notes= {
   {112,113,114,115,116,117,118,119,  120}
 }
 
-launchpad.width = 9
+-- Originally set the grid width to match the 9 columns of the launchpad (right column is A-H aux column)
+--launchpad.width = 9
 
 -- Original - Sets clear and copy bits!?!
 --launchpad.brightness_map = {0,28,28,60,60,60,29,29,29,62,62,63,63,13,13,15}
@@ -32,15 +33,24 @@ launchpad.brightness_map = {0,16,16,32,32,48,48,49,49,33,33,50,50,34,34,51}
 
 launchpad.reset_device_msg = { 0xB0, 0x00, 0x00 }
 
-launchpad.quad_leds = { CC = {108,109,110,111} }
 
 launchpad.cc_event_handlers = {}
-launchpad.cc_event_handlers[108] = function(self,val) self:change_quad(1) end
-launchpad.cc_event_handlers[109] = function(self,val) self:change_quad(2) end
-launchpad.cc_event_handlers[110] = function(self,val) self:change_quad(3) end
-launchpad.cc_event_handlers[111] = function(self,val) self:change_quad(4) end
 
--- TODO move back to generic device?
+-- Changed Quad / page change buttons to match RGB Launchpads
+
+--launchpad.quad_leds = { CC = {108,109,110,111} }
+--launchpad.cc_event_handlers[108] = function(self,val) self:change_quad(1) end
+--launchpad.cc_event_handlers[109] = function(self,val) self:change_quad(2) end
+--launchpad.cc_event_handlers[110] = function(self,val) self:change_quad(3) end
+--launchpad.cc_event_handlers[111] = function(self,val) self:change_quad(4) end
+
+-- "Arrow buttons"
+launchpad.quad_leds = {CC = {104,105,106,107}}
+launchpad.cc_event_handlers[104] = function(self,val) self:change_quad(1) end
+launchpad.cc_event_handlers[105] = function(self,val) self:change_quad(2) end
+launchpad.cc_event_handlers[106] = function(self,val) self:change_quad(3) end
+launchpad.cc_event_handlers[107] = function(self,val) self:change_quad(4) end
+
 function launchpad:cc_handler(vgrid,midi_msg)
   if self.cc_event_handlers[midi_msg.cc] then
     self.cc_event_handlers[midi_msg.cc](self,midi_msg.val)
