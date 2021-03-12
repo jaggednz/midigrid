@@ -39,6 +39,8 @@ local device={
   device_name = 'generic'
 }
 
+function device:init() end -- optional init function
+
 --function expects grid brightness from 0-15 and converts in so your midi controller can understand,
 -- these values need to be adjusted for your controller!
 function device:brightness_handler(val)
