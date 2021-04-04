@@ -2,15 +2,14 @@ local supported_devices = {
   midi_devices = {
     
     -- Misc grid devices
-    
-    {  midi_base_name= 'apc mini',         device_type='apc_mini'      },
-    {  midi_base_name= 'block 1',          device_type='livid_block'   },
+    {  midi_base_name= 'apc mini',              device_type='apc_mini'       },
+    {  midi_base_name= 'block 1',               device_type='livid_block'    },
+    {  midi_base_name= 'feather m4 express',    device_type='neotrellis_64'  },
 
     -- Ableton Push 2
-    {  midi_base_name= 'ableton push 2 1',          device_type='push2'   },
+    {  midi_base_name= 'ableton push 2 1',      device_type='push2'          },
 
     -- Novation Launchpads 
-    
     {  midi_base_name= 'launchpad',        device_type='launchpad'       },
     {  midi_base_name= 'launchpad s',      device_type='launchpad'       },
     {  midi_base_name= 'launchpad mini',   device_type='launchpad'       },
