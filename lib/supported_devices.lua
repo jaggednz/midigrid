@@ -32,6 +32,10 @@ local supported_devices = {
     { midi_base_name= 'launchpad pro mk3',      device_type='launchpad_rgb' },
     { midi_base_name= 'launchpad x 2',          device_type='launchpad_x' },
     { midi_base_name= 'launchpad x 2 2',        device_type='launchpad_x' },
+    { midi_base_name= 'launchpad Pro 1',        device_type='launchpad_rgb' },
+    { midi_base_name= 'launchpad Pro 2',        device_type='launchpad_rgb' },
+    { midi_base_name= 'launchpad Pro 3',        device_type='launchpad_rgb' },
+    
     
     -- Ableton Push 2
     { midi_base_name= 'ableton push 2 1',          device_type='push2'   },
