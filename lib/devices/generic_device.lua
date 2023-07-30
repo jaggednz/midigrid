@@ -85,6 +85,11 @@ function device:_reset()
 end
 
 function device._update_led(self,x,y,z)
+  if y < 1 or #self.grid_notes < y or x < 1 or #self.grid_notes[y] < x then
+    print("_update_led: x="..x.."; y="..y.."; z="..z)
+    return
+  end
+
   local vel = self.brightness_map[z+1]
   local note = self.grid_notes[y][x]
   local midi_msg = {0x90,note,vel}

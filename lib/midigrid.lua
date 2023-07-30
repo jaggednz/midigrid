@@ -54,10 +54,19 @@ function midigrid.connect(dummy_id)
   end
 
   local connected_devices = midigrid._load_midi_devices(midi_devices)
-  
+
   -- Some script check grid.device is not nil to prove a grid is attached
   if connected_devices then
-    midigrid.device = true  
+    midigrid.device = {
+        id = 999,
+        cols = midigrid.cols,
+        rows = midigrid.rows,
+        -- leaving out 'port' because a dummy value might cause undefined
+        -- behavior.  Better to have an error if some script actually needs to
+        -- use the port number than to silently do something weird.
+        name = "midigrid",
+        serial = 1234567
+    }
   end
 
   vgrid:attach_devices(connected_devices)
