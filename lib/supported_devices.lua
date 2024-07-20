@@ -28,6 +28,7 @@ local supported_devices = {
     --   launchpad mini mk3 2 2
     -- LP Mini MK3 needs to be put in Programmer mode manually for midigrid use.
     { midi_base_name= 'launchpad mk2',          device_type='launchpad_rgb'   },
+    { midi_base_name= 'launchpad mk2 2',          device_type='launchpad_rgb'   },
     { midi_base_name= 'launchpad mini mk3 2',   device_type='launchpad_minimk3' },
     { midi_base_name= 'launchpad mini mk3 2 2', device_type='launchpad_minimk3' },
     { midi_base_name= 'launchpad pro mk3',      device_type='launchpad_rgb' },
