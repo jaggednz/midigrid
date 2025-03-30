@@ -7,7 +7,7 @@ deluge.width = 16
 deluge.height = 8
 
 -- mapping velocity (0-127) to LED brightness on deluge side, brightness map needs 16 values
-deluge.brightness_map = {0,15,23,31,39,47,55,63,71,79,87,95,103,111,119,127}
+deluge.brightness_map = {0,15,23,31,39,47,55,63,71,79,87,95,103,111,119,126}
 
 -- 0 is bottom left of deluge main grid, 127 is top right of deluge main grid
 -- 0 is C-2, 127 is G8
