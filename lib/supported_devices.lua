@@ -1,17 +1,17 @@
 local supported_devices = {
   midi_devices = {
-    
+
     -- Basic midi grid devices
     { midi_base_name= 'apc mini',         device_type='apc_mini'      },
     { midi_base_name= 'apc mini mk2 1',   device_type='apc_mini_mk2'  },
     { midi_base_name= 'block 1',          device_type='livid_block'   },
 
     -- Novation Launchpads Gen.1
-    
+
     { midi_base_name= 'launchpad',        device_type='launchpad'       },
     { midi_base_name= 'launchpad s',      device_type='launchpad'       },
     { midi_base_name= 'launchpad mini',   device_type='launchpad'       },
-    
+
     -- Novation Launchpads Gen.2
     --
     -- LP Mini MK3 presents two MIDI interfaces over USB:
@@ -34,10 +34,10 @@ local supported_devices = {
     { midi_base_name= 'launchpad pro mk3',      device_type='launchpad_rgb' },
     { midi_base_name= 'launchpad x 2',          device_type='launchpad_x' },
     { midi_base_name= 'launchpad x 2 2',        device_type='launchpad_x' },
-    
+
     -- Ableton Push 2
     { midi_base_name= 'ableton push 2 1',          device_type='push2'   },
-    
+
     -- Linnstrument
     { midi_base_name= 'linnstrument midi',          device_type='linnstrument'   },
 
@@ -56,6 +56,8 @@ function supported_devices.find_midi_device_type(midi_device)
     -- Old launchpad mini's have user set hardware ID 1 - 16:
     -- e.g. ID 4 appears as midi_device.name "Launchpad Mini 4"
     return 'launchpad'
+  elseif string.lower(midi_device.name): find 'launchpad pro mk3 %d' then
+    return 'launchpad_rgb'
   else
     for _,device_def in pairs(supported_devices.midi_devices) do
       if sysex_ident_resp and device_def.sysex_ident then
