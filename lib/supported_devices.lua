@@ -33,6 +33,8 @@ local supported_devices = {
     -- Confusingly unlike the x and mini the pro answers to programmer messages on interface *1* not 2.
     { midi_base_name= 'launchpad pro mk3 1',    device_type='launchpad_pro_mk3' },
     { midi_base_name= 'launchpad pro mk3 1 1',  device_type='launchpad_pro_mk3' },
+    { midi_base_name= 'launchpad pro 2',    device_type='launchpad_pro_mk1' },
+    { midi_base_name= 'launchpad pro 2 2',  device_type='launchpad_pro_mk1' },
     { midi_base_name= 'launchpad x 2',          device_type='launchpad_x' },
     { midi_base_name= 'launchpad x 2 2',        device_type='launchpad_x' },
     { midi_base_name= 'launchpad open 2',       device_type='launchpad_x' },
