@@ -25,4 +25,18 @@ launchpad.aux.row = {
   {'cc', 98, 0}
 }
 
+-- Override change_quad to force an immediate grid redraw when switching pages.
+-- Without this, the Launchpad won't update until the script's next dirty_grid
+-- cycle, which may not be running (e.g. when playback is stopped).
+function launchpad:change_quad(quad)
+  self.current_quad = quad
+  self.force_full_refresh = true
+  if self.vgrid then
+    for _, q in pairs(self.vgrid.quads) do
+      q.force_full_redraw = true
+    end
+    self.vgrid:refresh()
+  end
+end
+
 return launchpad
