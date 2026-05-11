@@ -45,7 +45,8 @@ local all_btn_ccs = {
   10, 20, 30, 40, 50, 60, 70, 80,
   19, 29, 39, 49, 59, 69, 79, 89,
   91, 92, 93, 94, 95, 96, 97, 98,
-  90, 99
+  90,   -- Setup button
+  99    -- User button
 }
 
 -- Page buttons = top row (aux.row, CC 91-98)
@@ -84,11 +85,26 @@ local rgb_lut = {
 -- (button colors come from rgb_lut via aux state)
 
 -----------------------------------------------------------------------
+-- Constants
+-----------------------------------------------------------------------
+
+-- Novation LP Pro MK3 SysEx RGB header (LED lighting command)
+local SYX_RGB = { 0xF0, 0x00, 0x20, 0x29, 0x02, 0x0E, 0x03 }
+
+-- Clamp a z/brightness value to valid rgb_lut index (1–16)
+local function clamp_rgb_index(z)
+  if type(z) ~= "number" then return 1 end
+  if z < 0 then return 1 end
+  if z > 15 then return 16 end
+  return z + 1
+end
+
+-----------------------------------------------------------------------
 -- Pre-built SysEx messages for init clearing
 -----------------------------------------------------------------------
 local flash_clear_sysx
 do
-  local m = { 0xF0, 0x00, 0x20, 0x29, 0x02, 0x0E, 0x03 }
+  local m = { table.unpack(SYX_RGB) }
   for _, led in ipairs(grid_leds) do
     m[#m + 1] = 0x01; m[#m + 1] = led; m[#m + 1] = 0; m[#m + 1] = 0
   end
@@ -98,7 +114,7 @@ end
 
 local pulse_clear_sysx
 do
-  local m = { 0xF0, 0x00, 0x20, 0x29, 0x02, 0x0E, 0x03 }
+  local m = { table.unpack(SYX_RGB) }
   for _, led in ipairs(grid_leds) do
     m[#m + 1] = 0x02; m[#m + 1] = led; m[#m + 1] = 0
   end
@@ -106,9 +122,20 @@ do
   pulse_clear_sysx = m
 end
 
+local btn_rgb_clear_sysx
+do
+  local m = { table.unpack(SYX_RGB) }
+  for _, cc in ipairs(all_btn_ccs) do
+    m[#m + 1] = 0x03; m[#m + 1] = cc
+    m[#m + 1] = 0; m[#m + 1] = 0; m[#m + 1] = 0
+  end
+  m[#m + 1] = 0xF7
+  btn_rgb_clear_sysx = m
+end
+
 local btn_flash_clear_sysx
 do
-  local m = { 0xF0, 0x00, 0x20, 0x29, 0x02, 0x0E, 0x03 }
+  local m = { table.unpack(SYX_RGB) }
   for _, cc in ipairs(all_btn_ccs) do
     m[#m + 1] = 0x01; m[#m + 1] = cc; m[#m + 1] = 0; m[#m + 1] = 0
   end
@@ -118,7 +145,7 @@ end
 
 local btn_pulse_clear_sysx
 do
-  local m = { 0xF0, 0x00, 0x20, 0x29, 0x02, 0x0E, 0x03 }
+  local m = { table.unpack(SYX_RGB) }
   for _, cc in ipairs(all_btn_ccs) do
     m[#m + 1] = 0x02; m[#m + 1] = cc; m[#m + 1] = 0
   end
@@ -134,7 +161,7 @@ function launchpad:_init(vgrid, device_number)
   _parent_init(self, vgrid, device_number)
 
   local dev = midi.devices[self.midi_id]
-  if dev then
+  if dev and not dev._lp_mk3_filtered then
     local original_send = dev.send
     dev.send = function(self_inner, data)
       -- Block all non-SysEx MIDI: norns may send note_off, CC resets,
@@ -148,6 +175,7 @@ function launchpad:_init(vgrid, device_number)
       end
       return original_send(self_inner, data)
     end
+    dev._lp_mk3_filtered = true
   end
 end
 
@@ -166,13 +194,7 @@ function launchpad:_reset()
   dev:send(pulse_clear_sysx)
 
   -- Buttons: clear static RGB, flash, pulse via SysEx
-  local bm = { 0xF0, 0x00, 0x20, 0x29, 0x02, 0x0E, 0x03 }
-  for _, cc in ipairs(all_btn_ccs) do
-    bm[#bm + 1] = 0x03; bm[#bm + 1] = cc
-    bm[#bm + 1] = 0; bm[#bm + 1] = 0; bm[#bm + 1] = 0
-  end
-  bm[#bm + 1] = 0xF7
-  dev:send(bm)
+  dev:send(btn_rgb_clear_sysx)
 
   dev:send(btn_flash_clear_sysx)
   dev:send(btn_pulse_clear_sysx)
@@ -189,11 +211,11 @@ function launchpad._update_led(self, x, y, z)
     return
   end
   local led = self.grid_notes[y][x]
-  local rgb = rgb_lut[z + 1]
+  local rgb = rgb_lut[clamp_rgb_index(z)]
   local dev = midi.devices[self.midi_id]
   if dev then
     dev:send({
-      0xF0, 0x00, 0x20, 0x29, 0x02, 0x0E, 0x03,
+      table.unpack(SYX_RGB),
       0x03, led, rgb[1], rgb[2], rgb[3],
       0xF7
     })
@@ -205,8 +227,8 @@ end
 -----------------------------------------------------------------------
 local function append_aux_specs(self, m)
   local function add_btn(button)
-    if button[3] == nil then return end  -- skip handlers
-    local rgb = rgb_lut[button[3] + 1]
+    if button[3] == nil or type(button[3]) ~= "number" then return end
+    local rgb = rgb_lut[clamp_rgb_index(button[3])]
     m[#m + 1] = 0x03
     m[#m + 1] = button[2]   -- CC number = LED index
     m[#m + 1] = rgb[1]
@@ -243,11 +265,11 @@ function launchpad:refresh(quad)
   local dev = midi.devices[self.midi_id]
   if dev then
     if self.force_full_refresh then
-      local m = { 0xF0, 0x00, 0x20, 0x29, 0x02, 0x0E, 0x03 }
+      local m = { table.unpack(SYX_RGB) }
       for y = 1, quad.height do
         for x = 1, quad.width do
           local led = self.grid_notes[y][x]
-          local rgb = rgb_lut[quad.buffer[x][y] + 1]
+          local rgb = rgb_lut[clamp_rgb_index(quad.buffer[x][y])]
           m[#m + 1] = 0x03
           m[#m + 1] = led
           m[#m + 1] = rgb[1]; m[#m + 1] = rgb[2]; m[#m + 1] = rgb[3]
@@ -259,12 +281,12 @@ function launchpad:refresh(quad)
       self.force_full_refresh = false
     else
       if quad.frozen_update and quad.frozen_update.update_count > 0 then
-        local m = { 0xF0, 0x00, 0x20, 0x29, 0x02, 0x0E, 0x03 }
+        local m = { table.unpack(SYX_RGB) }
         for u = 1, quad.frozen_update.update_count do
           local x = quad.frozen_update.updates_x[u]
           local y = quad.frozen_update.updates_y[u]
           local led = self.grid_notes[y][x]
-          local rgb = rgb_lut[quad.buffer[x][y] + 1]
+          local rgb = rgb_lut[clamp_rgb_index(quad.buffer[x][y])]
           m[#m + 1] = 0x03
           m[#m + 1] = led
           m[#m + 1] = rgb[1]; m[#m + 1] = rgb[2]; m[#m + 1] = rgb[3]
@@ -288,7 +310,7 @@ end
 -- Assumes update_quad_btn_aux() has already been called if needed.
 -----------------------------------------------------------------------
 function launchpad:send_aux_sysx(dev)
-  local m = { 0xF0, 0x00, 0x20, 0x29, 0x02, 0x0E, 0x03 }
+  local m = { table.unpack(SYX_RGB) }
   append_aux_specs(self, m)
   m[#m + 1] = 0xF7
   dev:send(m)
