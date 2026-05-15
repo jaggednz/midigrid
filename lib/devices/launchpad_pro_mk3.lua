@@ -18,8 +18,6 @@ local launchpad = include('midigrid/lib/devices/launchpad_rgb')
 -- Enter Programmer Mode
 launchpad.init_device_msg = { 0xf0, 0x00, 0x20, 0x29, 0x02, 0x0e, 0x0e, 0x01, 0xf7 }
 
-launchpad.rotate_second_device = false
-
 launchpad.aux.col = {
   {'cc', 10, 0}, {'cc', 20, 0}, {'cc', 30, 0}, {'cc', 40, 0},
   {'cc', 50, 0}, {'cc', 60, 0}, {'cc', 70, 0}, {'cc', 80, 0}
