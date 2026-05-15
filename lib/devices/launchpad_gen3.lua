@@ -98,10 +98,13 @@ function launchpad:_init(vgrid, device_number)
   -- Build the SysEx RGB header from the device-specific ID
   self.syx_rgb = { 0xF0, 0x00, 0x20, 0x29, 0x02, self.sysex_device_id, 0x03 }
 
+  -- Placeholder: _parent_init calls _reset which iterates _grid_leds.
+  -- Must exist before _parent_init to avoid ipairs(nil) crash.
+  self._grid_leds = {}
+
   _parent_init(self, vgrid, device_number)
 
-  -- Build grid LED index list after parent init (which may rotate grid_notes)
-  self._grid_leds = {}
+  -- Now populate after parent init (which may rotate grid_notes)
   for y = 1, 8 do
     for x = 1, 8 do
       self._grid_leds[#self._grid_leds + 1] = self.grid_notes[y][x]
