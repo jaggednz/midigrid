@@ -21,6 +21,9 @@
 --   self.aux.col           -- aux column buttons
 --   self.aux.row           -- aux row buttons
 --   self._extra_btn_ccs    -- (optional) extra button CCs to clear, e.g. {90, 99}
+--
+-- Child drivers MAY override before _init() is called:
+--   self.rgb_lut           -- custom 16-entry RGB colour palette (z=0..15)
 -----------------------------------------------------------------------
 
 local launchpad = include('midigrid/lib/devices/launchpad_rgb')
@@ -37,7 +40,9 @@ local launchpad = include('midigrid/lib/devices/launchpad_rgb')
 -- Original brightness_map: {0, 11, 100, 125, 83, 117, 14, 62,
 --                           99, 118, 126, 97, 109, 13, 12, 119}
 -----------------------------------------------------------------------
-local rgb_lut = {
+-- Default RGB colour palette (warm amber/yellow/white)
+-- Child drivers can override self.rgb_lut before calling _init().
+local default_rgb_lut = {
   {  0,   0,   0},   -- z=0:  off              (palette 0)
   { 32,   8,   0},   -- z=1:  dark red           (palette 11)
   { 28,  20,   0},   -- z=2:  dark amber         (palette 100)
@@ -55,6 +60,8 @@ local rgb_lut = {
   {127,  87,  22},   -- z=14: bright amber       (palette 12)
   {111, 127, 127},   -- z=15: warm white         (palette 119)
 }
+
+launchpad.rgb_lut = default_rgb_lut
 
 -- Clamp a z/brightness value to valid rgb_lut index (1–16)
 local function clamp_rgb_index(z)
@@ -208,7 +215,7 @@ function launchpad._update_led(self, x, y, z)
     return
   end
   local led = self.grid_notes[y][x]
-  local rgb = rgb_lut[clamp_rgb_index(z)]
+  local rgb = self.rgb_lut[clamp_rgb_index(z)]
   local dev = midi.devices[self.midi_id]
   if dev then
     dev:send({
@@ -223,9 +230,10 @@ end
 -- Helper: append aux button RGB specs to a SysEx message
 -----------------------------------------------------------------------
 local function append_aux_specs(self, m)
+  local lut = self.rgb_lut
   local function add_btn(button)
     if button[3] == nil or type(button[3]) ~= "number" then return end
-    local rgb = rgb_lut[clamp_rgb_index(button[3])]
+    local rgb = lut[clamp_rgb_index(button[3])]
     m[#m + 1] = 0x03
     m[#m + 1] = button[2]   -- CC number = LED index
     m[#m + 1] = rgb[1]
@@ -266,7 +274,7 @@ function launchpad:refresh(quad)
       for y = 1, quad.height do
         for x = 1, quad.width do
           local led = self.grid_notes[y][x]
-          local rgb = rgb_lut[clamp_rgb_index(quad.buffer[x][y])]
+          local rgb = self.rgb_lut[clamp_rgb_index(quad.buffer[x][y])]
           m[#m + 1] = 0x03
           m[#m + 1] = led
           m[#m + 1] = rgb[1]; m[#m + 1] = rgb[2]; m[#m + 1] = rgb[3]
@@ -283,7 +291,7 @@ function launchpad:refresh(quad)
           local x = quad.frozen_update.updates_x[u]
           local y = quad.frozen_update.updates_y[u]
           local led = self.grid_notes[y][x]
-          local rgb = rgb_lut[clamp_rgb_index(quad.buffer[x][y])]
+          local rgb = self.rgb_lut[clamp_rgb_index(quad.buffer[x][y])]
           m[#m + 1] = 0x03
           m[#m + 1] = led
           m[#m + 1] = rgb[1]; m[#m + 1] = rgb[2]; m[#m + 1] = rgb[3]
