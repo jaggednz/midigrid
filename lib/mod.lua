@@ -52,6 +52,7 @@ local grid_sizes = { "64", "128", "256" }
 local state = {
   midigrid_active = true,  -- is midigrid active?
   grid_size = 2,           -- size of midigrid.  default 2 -> grid 128
+  rotate_second_device = true, -- rotate the second device 90 degrees CCW
   dirty = false            -- has the state been changed since last persisted?
 }
 
@@ -102,7 +103,7 @@ fake_grid.connect = function(idx)
     if state.midigrid_active then
       log("Connecting to midigrid")
       local midigrid = include "midigrid/lib/midigrid"
-      midigrid:init(grid_sizes[state.grid_size])
+      midigrid:init(grid_sizes[state.grid_size], state.rotate_second_device)
 
       reentrance_guard = true
       local g = midigrid.connect(idx)
@@ -153,6 +154,19 @@ local function init_params()
                           end
                           state.grid_size = v
                       end)
+
+  m.params:add_option("rotate_second_device", "rotate second device",
+                      {"on", "off"},
+                      state.rotate_second_device and 1 or 2)
+  m.params:set_action("rotate_second_device",
+                      function(v)
+                          local rotate = v == 1 and true or false
+                          if state.rotate_second_device ~= rotate then
+                              state.dirty = true
+                          end
+                          state.rotate_second_device = rotate
+                      end)
+
   m.exit_hook = function(m)
     if state.dirty then
       log("saving midigrid configuration")
@@ -182,6 +196,9 @@ mod.hook.register("system_post_startup", "midigrid startup", function()
   if not error then
     state.midigrid_active = t.midigrid_active
     state.grid_size = t.grid_size
+    if t.rotate_second_device ~= nil then
+      state.rotate_second_device = t.rotate_second_device
+    end
     state.dirty = false
   else
     log("Could not load midigrid configuration: " .. error)
