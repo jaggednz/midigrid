@@ -120,15 +120,28 @@ end
 
 function midigrid._load_midi_devices(midi_devs)
   local connected_devices = {}
+
+  -- Resolve palette: use init()'s explicit setting, or fall back to mod state
+  local palette_name = midigrid.palette_name
+  if not palette_name then
+    local ok, mod_api = pcall(function() return include("midigrid/lib/mod") end)
+    if ok and mod_api and mod_api.get_state then
+      local s = mod_api.get_state()
+      if s.palette and mod_api.palette_names then
+        palette_name = mod_api.palette_names[s.palette]
+      end
+    end
+  end
+
   for midi_id,midi_device_type in pairs(midi_devs) do
     print("Loading midi device type:" .. midi_device_type .. " on midi port " .. midi_id)
     local device = include('midigrid/lib/devices/'..midi_device_type)
     device.midi_id = midi_id
     -- Apply the mod-level rotate setting to the device
     device.rotate_second_device = midigrid.rotate_second_device
-    -- Apply the mod-level palette setting (Gen3 RGB devices)
-    if midigrid.palette_name and device.rgb_lut then
-      device.rgb_lut = include('midigrid/lib/devices/palettes/' .. midigrid.palette_name)
+    -- Apply the palette setting (Gen3 RGB devices)
+    if palette_name and device.rgb_lut then
+      device.rgb_lut = include('midigrid/lib/devices/palettes/' .. palette_name)
     end
     connected_devices[midi_id] = device
   end

@@ -220,6 +220,9 @@ mod.hook.register("system_post_startup", "midigrid startup", function()
     if t.rotate_second_device ~= nil then
       state.rotate_second_device = t.rotate_second_device
     end
+    if t.palette ~= nil then
+      state.palette = t.palette
+    end
     state.dirty = false
   else
     log("Could not load midigrid configuration: " .. error)
@@ -262,5 +265,7 @@ local api = {}
 api.get_state = function()
   return state
 end
+
+api.palette_names = palette_names
 
 return api
