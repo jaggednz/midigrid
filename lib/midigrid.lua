@@ -124,7 +124,7 @@ function midigrid._load_midi_devices(midi_devs)
   -- Resolve palette: use init()'s explicit setting, or fall back to mod state
   local palette_name = midigrid.palette_name
   if not palette_name then
-    local ok, mod_api = pcall(function() return include("midigrid/lib/mod") end)
+    local ok, mod_api = pcall(function() return require("midigrid/lib/mod") end)
     if ok and mod_api and mod_api.get_state then
       local s = mod_api.get_state()
       if s.palette and mod_api.palette_names then
