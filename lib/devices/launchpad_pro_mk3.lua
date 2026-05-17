@@ -8,23 +8,6 @@
 
 local launchpad = include('midigrid/lib/devices/launchpad_gen3')
 
--- Palette selection (uncomment one):
--- launchpad.rgb_lut = include('midigrid/lib/devices/palettes/arctic_aurora')
--- launchpad.rgb_lut = include('midigrid/lib/devices/palettes/blood_moon')
--- launchpad.rgb_lut = include('midigrid/lib/devices/palettes/candlelight')
--- launchpad.rgb_lut = include('midigrid/lib/devices/palettes/cyberpunk')
--- launchpad.rgb_lut = include('midigrid/lib/devices/palettes/deep_space')
--- launchpad.rgb_lut = include('midigrid/lib/devices/palettes/electric_violet')
--- launchpad.rgb_lut = include('midigrid/lib/devices/palettes/lava')
--- launchpad.rgb_lut = include('midigrid/lib/devices/palettes/mono')
--- launchpad.rgb_lut = include('midigrid/lib/devices/palettes/neon_mint')
--- launchpad.rgb_lut = include('midigrid/lib/devices/palettes/nordic_frost')
--- launchpad.rgb_lut = include('midigrid/lib/devices/palettes/ocean')
--- launchpad.rgb_lut = include('midigrid/lib/devices/palettes/peach_blossom')
--- launchpad.rgb_lut = include('midigrid/lib/devices/palettes/poison')
--- launchpad.rgb_lut = include('midigrid/lib/devices/palettes/sunset')
-launchpad.rgb_lut = include('midigrid/lib/devices/palettes/vintage_amber')
-
 launchpad.sysex_device_id = 0x0E
 
 -- Enter Programmer Mode via Programmer/Live toggle

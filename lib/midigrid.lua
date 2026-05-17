@@ -34,11 +34,12 @@ local midigrid = {
   key = nil,
 }
 
-function midigrid:init(layout, rotate_second)
+function midigrid:init(layout, rotate_second, palette_name)
   self.vgrid:init(layout)
   self.cols = self.vgrid.width
   self.rows = self.vgrid.height
   self.rotate_second_device = rotate_second
+  self.palette_name = palette_name
 end
 
 function midigrid.connect(dummy_id)
@@ -48,7 +49,7 @@ function midigrid.connect(dummy_id)
   if midigrid.vgrid.layout == nil then
     print("Default 64 layout init")
     -- User is calling connect without calling init, default to 64 button layout
-    midigrid:init('64')
+    midigrid:init('64', nil, nil)
   end
 
   local midi_devices = midigrid._find_midigrid_devices()
@@ -125,6 +126,10 @@ function midigrid._load_midi_devices(midi_devs)
     device.midi_id = midi_id
     -- Apply the mod-level rotate setting to the device
     device.rotate_second_device = midigrid.rotate_second_device
+    -- Apply the mod-level palette setting (Gen3 RGB devices)
+    if midigrid.palette_name and device.rgb_lut then
+      device.rgb_lut = include('midigrid/lib/devices/palettes/' .. midigrid.palette_name)
+    end
     connected_devices[midi_id] = device
   end
 

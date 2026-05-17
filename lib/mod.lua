@@ -47,12 +47,22 @@ end
 
 local grid_sizes = { "64", "128", "256" }
 
+-- The available palettes (for Launchpad Gen 3 RGB devices)
+
+local palette_names = {
+  "vintage_amber", "arctic_aurora", "blood_moon", "candlelight",
+  "cyberpunk", "deep_space", "electric_violet", "lava",
+  "mono", "neon_mint", "nordic_frost", "ocean",
+  "peach_blossom", "poison", "sunset"
+}
+
 -- The state of midigrid as controlled by this mod
 
 local state = {
   midigrid_active = true,  -- is midigrid active?
   grid_size = 2,           -- size of midigrid.  default 2 -> grid 128
   rotate_second_device = true, -- rotate the second device 90 degrees CCW
+  palette = 1,             -- palette index.  default 1 -> vintage_amber
   dirty = false            -- has the state been changed since last persisted?
 }
 
@@ -103,7 +113,7 @@ fake_grid.connect = function(idx)
     if state.midigrid_active then
       log("Connecting to midigrid")
       local midigrid = include "midigrid/lib/midigrid"
-      midigrid:init(grid_sizes[state.grid_size], state.rotate_second_device)
+      midigrid:init(grid_sizes[state.grid_size], state.rotate_second_device, palette_names[state.palette])
 
       reentrance_guard = true
       local g = midigrid.connect(idx)
@@ -165,6 +175,17 @@ local function init_params()
                               state.dirty = true
                           end
                           state.rotate_second_device = rotate
+                      end)
+
+  m.params:add_option("palette", "palette",
+                      palette_names,
+                      state.palette)
+  m.params:set_action("palette",
+                      function(v)
+                          if state.palette ~= v then
+                              state.dirty = true
+                          end
+                          state.palette = v
                       end)
 
   m.exit_hook = function(m)
