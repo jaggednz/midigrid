@@ -52,7 +52,7 @@ local grid_sizes = { "64", "128", "256" }
 local palette_names = {
   "vintage_amber", "arctic_aurora", "blood_moon", "candlelight",
   "cyberpunk", "deep_space", "electric_violet", "lava",
-  "mono", "neon_mint", "nordic_frost", "ocean",
+  "mono", "neon_mint", "soft_mint", "nordic_frost", "ocean",
   "peach_blossom", "poison", "sunset"
 }
 
