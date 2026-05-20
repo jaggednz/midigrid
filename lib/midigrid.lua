@@ -113,6 +113,8 @@ end
 function vgrid.key(x,y,z)
   if midigrid.key then
     midigrid.key(x,y,z)
+  elseif grid.key then
+    grid.key(x,y,z)
   end
 end
 
