@@ -23,6 +23,9 @@ local Vgrid = {
 function Vgrid:init(layout)
   self.layout = layout or '128'
   print("vgrid init with layout: ".. self.layout)
+  -- Clear stale state from previous script to prevent quad accumulation
+  self.quads = {}
+  self.devices = {}
   if self.layout == '64' then
      self.locate_in_layout = function(self,x,y)
       if (x < 1 or y < 1) then return nil end

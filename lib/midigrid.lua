@@ -43,8 +43,24 @@ function midigrid:init(layout, rotate_second, palette_name)
 end
 
 function midigrid.connect(dummy_id)
-  --Only instantate midigrid once!
-  if _ENV.midigrid then return _ENV.midigrid end
+  -- If already instantiated (script switch), clear stale hardware state
+  if _ENV.midigrid then
+    -- Zero all quad buffers so the new script starts with a clean slate
+    for _, quad in pairs(midigrid.vgrid.quads) do
+      for x = 1, quad.width do
+        for y = 1, quad.height do
+          quad.buffer[x][y] = 0
+        end
+      end
+    end
+    -- Force every device to resend all LEDs on next refresh (clears hardware)
+    for _, device in pairs(midigrid.vgrid.devices) do
+      device.force_full_refresh = true
+    end
+    -- Push the all-off state to hardware immediately
+    midigrid.vgrid:refresh()
+    return _ENV.midigrid
+  end
   
   if midigrid.vgrid.layout == nil then
     print("Default 64 layout init")
