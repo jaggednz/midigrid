@@ -201,6 +201,13 @@ local function init_params()
       if error then
         log("Could not save midigrid configuration: " .. error)
       end
+
+      -- Flush palette changes to connected devices without requiring a restart
+      if _ENV.midigrid and state.midigrid_active then
+        local new_palette = palette_names[state.palette]
+        log("flushing palette: " .. (new_palette or "nil"))
+        _ENV.midigrid:flush_palette(new_palette)
+      end
     end
     state.dirty = false
   end

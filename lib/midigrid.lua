@@ -149,6 +149,28 @@ function midigrid._load_midi_devices(midi_devs)
   return connected_devices
 end
 
+-- Flush a new palette to all connected devices and force a full redraw.
+-- Called from the mod menu exit_hook when the palette setting changes.
+function midigrid:flush_palette(palette_name)
+  if not palette_name then return end
+  for _, device in pairs(self.vgrid.devices) do
+    if device.rgb_lut then
+      device.rgb_lut = include('midigrid/lib/devices/palettes/' .. palette_name)
+    end
+  end
+  -- Force a full refresh so the hardware picks up the new colours immediately
+  for _, quad in pairs(self.vgrid.quads) do
+    quad.force_full_redraw = true
+  end
+  -- Also force devices to resend every LED on next refresh
+  for _, device in pairs(self.vgrid.devices) do
+    if device.force_full_refresh ~= nil then
+      device.force_full_refresh = true
+    end
+  end
+  self.vgrid:refresh()
+end
+
 function midigrid.setup_connect_handling()
     midigrid.core_midi_add = midi.add
     midigrid.core_midi_remove = midi.remove
