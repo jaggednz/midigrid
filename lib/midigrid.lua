@@ -98,6 +98,12 @@ function midigrid.connect(dummy_id)
   vgrid:attach_devices(connected_devices)
   midigrid.setup_connect_handling()
 
+  -- Push the all-off state to hardware immediately so ghost LEDs from
+  -- the previous script are cleared regardless of when the new script
+  -- first calls refresh().  Devices were created with fresh (zero)
+  -- buffers and force_full_refresh=true, so this sends all-off.
+  vgrid:refresh()
+
   --Expose midigrid globally
   _ENV.midigrid = midigrid
   
