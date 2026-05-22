@@ -34,20 +34,42 @@ local midigrid = {
   key = nil,
 }
 
-function midigrid:init(layout)
+function midigrid:init(layout, rotate_second, palette_name)
   self.vgrid:init(layout)
   self.cols = self.vgrid.width
   self.rows = self.vgrid.height
+  self.rotate_second_device = rotate_second
+  self.palette_name = palette_name
 end
 
 function midigrid.connect(dummy_id)
-  --Only instantate midigrid once!
-  if _ENV.midigrid then return _ENV.midigrid end
-  
+  -- If already instantiated and vgrid still has devices attached (same
+  -- script reconnecting), just clear stale hardware state and return.
+  -- Fall through to full init if init() cleared quads/devices (e.g.
+  -- USB reconnect triggers mod's grid.connect callback which calls
+  -- init() before connect()).
+  if _ENV.midigrid and next(midigrid.vgrid.devices) then
+    -- Zero all quad buffers so the new script starts with a clean slate
+    for _, quad in pairs(midigrid.vgrid.quads) do
+      for x = 1, quad.width do
+        for y = 1, quad.height do
+          quad.buffer[x][y] = 0
+        end
+      end
+    end
+    -- Force every device to resend all LEDs on next refresh (clears hardware)
+    for _, device in pairs(midigrid.vgrid.devices) do
+      device.force_full_refresh = true
+    end
+    -- Push the all-off state to hardware immediately
+    midigrid.vgrid:refresh()
+    return _ENV.midigrid
+  end
+
   if midigrid.vgrid.layout == nil then
     print("Default 64 layout init")
     -- User is calling connect without calling init, default to 64 button layout
-    midigrid:init('64')
+    midigrid:init('64', nil, nil)
   end
 
   local midi_devices = midigrid._find_midigrid_devices()
@@ -80,6 +102,12 @@ function midigrid.connect(dummy_id)
   vgrid:attach_devices(connected_devices)
   midigrid.setup_connect_handling()
 
+  -- Push the all-off state to hardware immediately so ghost LEDs from
+  -- the previous script are cleared regardless of when the new script
+  -- first calls refresh().  Devices were created with fresh (zero)
+  -- buffers and force_full_refresh=true, so this sends all-off.
+  vgrid:refresh()
+
   --Expose midigrid globally
   _ENV.midigrid = midigrid
   
@@ -89,6 +117,8 @@ end
 function vgrid.key(x,y,z)
   if midigrid.key then
     midigrid.key(x,y,z)
+  elseif grid.key then
+    grid.key(x,y,z)
   end
 end
 
@@ -118,14 +148,57 @@ end
 
 function midigrid._load_midi_devices(midi_devs)
   local connected_devices = {}
+
+  -- Resolve palette: use init()'s explicit setting, or fall back to mod state
+  local palette_name = midigrid.palette_name
+  if not palette_name then
+    local ok, mod_api = pcall(function() return require("midigrid/lib/mod") end)
+    if ok and mod_api and mod_api.get_state then
+      local s = mod_api.get_state()
+      if s.palette and mod_api.palette_names then
+        palette_name = mod_api.palette_names[s.palette]
+      end
+    end
+  end
+
   for midi_id,midi_device_type in pairs(midi_devs) do
     print("Loading midi device type:" .. midi_device_type .. " on midi port " .. midi_id)
     local device = include('midigrid/lib/devices/'..midi_device_type)
     device.midi_id = midi_id
+    -- Apply the mod-level rotate setting to the device (only when explicitly set)
+    if midigrid.rotate_second_device ~= nil then
+      device.rotate_second_device = midigrid.rotate_second_device
+    end
+    -- Apply the palette setting (Gen3 RGB devices)
+    if palette_name and device.rgb_lut then
+      device.rgb_lut = include('midigrid/lib/devices/palettes/' .. palette_name)
+    end
     connected_devices[midi_id] = device
   end
 
   return connected_devices
+end
+
+-- Flush a new palette to all connected devices and force a full redraw.
+-- Called from the mod menu exit_hook when the palette setting changes.
+function midigrid:flush_palette(palette_name)
+  if not palette_name then return end
+  for _, device in pairs(self.vgrid.devices) do
+    if device.rgb_lut then
+      device.rgb_lut = include('midigrid/lib/devices/palettes/' .. palette_name)
+    end
+  end
+  -- Force a full refresh so the hardware picks up the new colours immediately
+  for _, quad in pairs(self.vgrid.quads) do
+    quad.force_full_redraw = true
+  end
+  -- Also force devices to resend every LED on next refresh
+  for _, device in pairs(self.vgrid.devices) do
+    if device.force_full_refresh ~= nil then
+      device.force_full_refresh = true
+    end
+  end
+  self.vgrid:refresh()
 end
 
 function midigrid.setup_connect_handling()

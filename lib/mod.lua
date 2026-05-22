@@ -47,11 +47,22 @@ end
 
 local grid_sizes = { "64", "128", "256" }
 
+-- The available palettes (for Launchpad Gen 3 RGB devices)
+
+local palette_names = {
+  "vintage_amber", "arctic_aurora", "blood_moon", "candlelight",
+  "cyberpunk", "deep_space", "electric_violet", "lava",
+  "mono", "neon_mint", "soft_mint", "nordic_frost", "ocean",
+  "peach_blossom", "poison", "sunset"
+}
+
 -- The state of midigrid as controlled by this mod
 
 local state = {
   midigrid_active = true,  -- is midigrid active?
   grid_size = 2,           -- size of midigrid.  default 2 -> grid 128
+  rotate_second_device = true, -- rotate the second device 90 degrees CCW
+  palette = 1,             -- palette index.  default 1 -> vintage_amber
   dirty = false            -- has the state been changed since last persisted?
 }
 
@@ -102,7 +113,7 @@ fake_grid.connect = function(idx)
     if state.midigrid_active then
       log("Connecting to midigrid")
       local midigrid = include "midigrid/lib/midigrid"
-      midigrid:init(grid_sizes[state.grid_size])
+      midigrid:init(grid_sizes[state.grid_size], state.rotate_second_device, palette_names[state.palette])
 
       reentrance_guard = true
       local g = midigrid.connect(idx)
@@ -153,6 +164,30 @@ local function init_params()
                           end
                           state.grid_size = v
                       end)
+
+  m.params:add_option("rotate_second_device", "rotate second device",
+                      {"on", "off"},
+                      state.rotate_second_device and 1 or 2)
+  m.params:set_action("rotate_second_device",
+                      function(v)
+                          local rotate = v == 1 and true or false
+                          if state.rotate_second_device ~= rotate then
+                              state.dirty = true
+                          end
+                          state.rotate_second_device = rotate
+                      end)
+
+  m.params:add_option("palette", "palette",
+                      palette_names,
+                      state.palette)
+  m.params:set_action("palette",
+                      function(v)
+                          if state.palette ~= v then
+                              state.dirty = true
+                          end
+                          state.palette = v
+                      end)
+
   m.exit_hook = function(m)
     if state.dirty then
       log("saving midigrid configuration")
@@ -165,6 +200,13 @@ local function init_params()
 
       if error then
         log("Could not save midigrid configuration: " .. error)
+      end
+
+      -- Flush palette changes to connected devices without requiring a restart
+      if _ENV.midigrid and state.midigrid_active then
+        local new_palette = palette_names[state.palette]
+        log("flushing palette: " .. (new_palette or "nil"))
+        _ENV.midigrid:flush_palette(new_palette)
       end
     end
     state.dirty = false
@@ -182,6 +224,12 @@ mod.hook.register("system_post_startup", "midigrid startup", function()
   if not error then
     state.midigrid_active = t.midigrid_active
     state.grid_size = t.grid_size
+    if t.rotate_second_device ~= nil then
+      state.rotate_second_device = t.rotate_second_device
+    end
+    if t.palette ~= nil then
+      state.palette = t.palette
+    end
     state.dirty = false
   else
     log("Could not load midigrid configuration: " .. error)
@@ -224,5 +272,7 @@ local api = {}
 api.get_state = function()
   return state
 end
+
+api.palette_names = palette_names
 
 return api
