@@ -26,6 +26,9 @@ function Vgrid:init(layout)
   -- Clear stale state from previous script to prevent quad accumulation
   self.quads = {}
   self.devices = {}
+  -- Reset dimensions to default; 128/256 branches will expand as needed
+  self.width = 8
+  self.height = 8
   if self.layout == '64' then
      self.locate_in_layout = function(self,x,y)
       if (x < 1 or y < 1) then return nil end

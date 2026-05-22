@@ -122,9 +122,12 @@ function launchpad:_init(vgrid, device_number)
   -- or transport messages on clock stop that interfere with
   -- Programmer Mode button LEDs.  All our output is SysEx, so
   -- anything else is unwanted.
+  --
+  -- Store the original send so we can restore it on cleanup,
+  -- avoiding permanent side effects on the global MIDI port.
   local dev = midi.devices[self.midi_id]
   if dev and not dev._gen3_filtered then
-    local original_send = dev.send
+    self._original_midi_send = dev.send
     dev.send = function(self_inner, data)
       if type(data) == "table" then
         if data[1] ~= 0xF0 then return end
@@ -133,9 +136,10 @@ function launchpad:_init(vgrid, device_number)
       elseif type(data) == "string" then
         if data:byte(1) ~= 0xF0 then return end
       end
-      return original_send(self_inner, data)
+      return self._original_midi_send(self_inner, data)
     end
     dev._gen3_filtered = true
+    self._midi_dev_patched = dev
   end
 end
 
@@ -341,6 +345,18 @@ function launchpad:change_quad(quad)
       q.force_full_redraw = true
     end
     self.vgrid:refresh()
+  end
+end
+
+-----------------------------------------------------------------------
+-- Cleanup: restore original MIDI send to avoid permanent side effects
+-----------------------------------------------------------------------
+function launchpad:_cleanup()
+  if self._midi_dev_patched and self._original_midi_send then
+    self._midi_dev_patched.send = self._original_midi_send
+    self._midi_dev_patched._gen3_filtered = nil
+    self._midi_dev_patched = nil
+    self._original_midi_send = nil
   end
 end
 

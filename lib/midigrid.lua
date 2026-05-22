@@ -43,8 +43,12 @@ function midigrid:init(layout, rotate_second, palette_name)
 end
 
 function midigrid.connect(dummy_id)
-  -- If already instantiated (script switch), clear stale hardware state
-  if _ENV.midigrid then
+  -- If already instantiated and vgrid still has devices attached (same
+  -- script reconnecting), just clear stale hardware state and return.
+  -- Fall through to full init if init() cleared quads/devices (e.g.
+  -- USB reconnect triggers mod's grid.connect callback which calls
+  -- init() before connect()).
+  if _ENV.midigrid and next(midigrid.vgrid.devices) then
     -- Zero all quad buffers so the new script starts with a clean slate
     for _, quad in pairs(midigrid.vgrid.quads) do
       for x = 1, quad.width do
@@ -61,7 +65,7 @@ function midigrid.connect(dummy_id)
     midigrid.vgrid:refresh()
     return _ENV.midigrid
   end
-  
+
   if midigrid.vgrid.layout == nil then
     print("Default 64 layout init")
     -- User is calling connect without calling init, default to 64 button layout
@@ -161,8 +165,10 @@ function midigrid._load_midi_devices(midi_devs)
     print("Loading midi device type:" .. midi_device_type .. " on midi port " .. midi_id)
     local device = include('midigrid/lib/devices/'..midi_device_type)
     device.midi_id = midi_id
-    -- Apply the mod-level rotate setting to the device
-    device.rotate_second_device = midigrid.rotate_second_device
+    -- Apply the mod-level rotate setting to the device (only when explicitly set)
+    if midigrid.rotate_second_device ~= nil then
+      device.rotate_second_device = midigrid.rotate_second_device
+    end
     -- Apply the palette setting (Gen3 RGB devices)
     if palette_name and device.rgb_lut then
       device.rgb_lut = include('midigrid/lib/devices/palettes/' .. palette_name)
