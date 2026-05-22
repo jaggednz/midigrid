@@ -214,6 +214,15 @@ function midigrid._handle_dev_add(id, name, dev)
 end
 
 function midigrid._handle_dev_remove(id)
+    -- Call device _cleanup() to restore patched MIDI send and
+    -- other hardware state before the port goes away.
+    if midigrid.vgrid and midigrid.vgrid.devices then
+      for midi_id, device in pairs(midigrid.vgrid.devices) do
+        if midi_id == id and device._cleanup then
+          device:_cleanup()
+        end
+      end
+    end
     midigrid.core_midi_remove(id)
     -- midigrid.update_devices()
 end

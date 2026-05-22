@@ -256,7 +256,7 @@ function push:change_quad(quad)
 end
 
 --- Auto-create quad switching handlers for left/right arrow buttons.
-function push:create_quad_handlers(quad_count)
+function push:create_quad_handers(quad_count)  -- match parent spelling
   if quad_count > 1 then
     for q = 1, quad_count do
       self.aux.row_handlers[q + 8] = function(self, val) self:change_quad(q) end
