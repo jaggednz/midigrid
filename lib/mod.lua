@@ -43,9 +43,10 @@ end
 -- Mod Menu Support
 -------------------------------------------------------------------------------
 
--- The available grid sizes
+-- Menu options
 
 local grid_sizes = { "64", "128", "256" }
+local rotation = {"0°", "90°", "180°", "270°"}
 
 -- The available palettes (for Launchpad Gen 3 RGB devices)
 
@@ -61,6 +62,7 @@ local palette_names = {
 local state = {
   midigrid_active = true,  -- is midigrid active?
   grid_size = 2,           -- size of midigrid.  default 2 -> grid 128
+  rotation = 1,            -- is the grid rotated, 0, 90, 180, 270
   rotate_second_device = true, -- rotate the second device 90 degrees CCW
   palette = 1,             -- palette index.  default 1 -> vintage_amber
   dirty = false            -- has the state been changed since last persisted?
@@ -142,6 +144,9 @@ mod.menu.register(mod.this_name, m)
 -- Install the parameters to be edited in the mod menu.
 
 local function init_params()
+
+  -- Is the midi grid active?
+
   m.params:add_option("midigrid_active", "midigrid active",
                       {"on", "off"},
                       state.midigrid_active and 1 or 2)
@@ -154,6 +159,8 @@ local function init_params()
                           state.midigrid_active = active
                       end)
 
+  -- What size (64, 128, 256) is the midi grid?
+
   m.params:add_option("midigrid_size", "midigrid size",
                       grid_sizes,
                       state.grid_size)
@@ -165,28 +172,34 @@ local function init_params()
                           state.grid_size = v
                       end)
 
-  m.params:add_option("rotate_second_device", "rotate second device",
-                      {"on", "off"},
-                      state.rotate_second_device and 1 or 2)
-  m.params:set_action("rotate_second_device",
-                      function(v)
-                          local rotate = v == 1 and true or false
-                          if state.rotate_second_device ~= rotate then
-                              state.dirty = true
-                          end
-                          state.rotate_second_device = rotate
-                      end)
+  -- Should a grid be rotated?
 
-  m.params:add_option("palette", "palette",
-                      palette_names,
-                      state.palette)
-  m.params:set_action("palette",
-                      function(v)
-                          if state.palette ~= v then
-                              state.dirty = true
-                          end
-                          state.palette = v
-                      end)
+  -- for i = device_count do
+  --   m.params:add{
+  --     type = "option",
+  --     id = "rotate_"..i,
+  --     name = "Rotate Device "..i,
+  --     options = rotation,
+  --     default = 1
+  --     action = function(v)
+  --      state.rotate_second..i = v
+  --      state.dirty = true
+  --      print(v)
+  -- end
+  -- }
+
+  m.params:add{
+    type = "option",
+    id = "rotate_1",
+    name = "Rotate Device 1",
+    options = rotation,
+    default = 1,
+    action = function(v)
+      state.rotate_1 = v
+      state.dirty = true
+      print(v)
+    end
+  }
 
   m.exit_hook = function(m)
     if state.dirty then

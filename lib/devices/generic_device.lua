@@ -1,7 +1,7 @@
 local device={
   --here we have the 'grid' this looks literally like the grid notes as they are mapped on the apc, they can be changed for other devices
   --note though, that a call to this table will look backwards, i.e, to get the visual x=1 and y=2, you have to enter midigrid[2][1], not the other way around!
-  grid_notes= {
+  grid_notes = {
     {56,57,58,59,60,61,62,63},
     {48,49,50,51,52,53,54,55},
     {40,41,42,43,44,45,46,47},
@@ -14,7 +14,6 @@ local device={
   note_to_grid_lookup = {}, -- Intentionally left empty
   width=8,
   height=8,
-  rotate_second_device=true,
 
   vgrid={},
   midi_id = 1,
@@ -24,11 +23,18 @@ local device={
   brightness_map = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15},
 
   -- This defines any Aux buttons, it expects at least one row and one column of 8 buttons
-  -- See launchpad.lua for an example. More than 8 buttons could be used for multple row/cols (i.e. LP Mk3 Pro)
+  -- More than 8 buttons could be used for multple row/cols (i.e. LP Mk3 Pro)
   -- Format is { 'cc'/'note', cc or note number, current/default state }
+
+  -- Rolled cc_lookup, note_lookup, row & column handlers into this as they were either elsewhere or generated later. May need splitting out for better organisation.
+
   aux = {
     col = {},
-    row = {}
+    row = {},
+    cc_lookup = {},
+    note_lookup = {},
+    row_handlers = {},
+    col_handlers = {}
   },
 
   -- the currently displayed quad on the device
@@ -45,21 +51,19 @@ function device:change_quad(quad)
     self.force_full_refresh = true
 end
 
-function device:_init(vgrid,device_number)
+function device:_init(vgrid, device_number, device_count)
   self.vgrid = vgrid
   
   --if (self.)
   
-  if (device_number == 2 and self.rotate_second_device) then
-    self:rotate_ccw()
+  for i=1, device_count do
+    print("Rotating:")
+    print(device_number)
+    self.grid_notes = device:rotate_grid(params:get("rotation_1")), self.grid_notes)
   end
   
   -- Create reverse lookup tables for device
   self:create_rev_lookups()
-  
-  -- Tabls for aux button handlers
-  self.aux.row_handlers = {}
-  self.aux.col_handlers = {}
   
   self:create_quad_handers(#vgrid.quads)
   
@@ -158,11 +162,15 @@ function device:_aux_btn_handler(type, msg, state)
   end
 end
 
+-- Never called?
+
 function device:aux_row_led(btn,state)
   if (self.aux and self.aux.row and self.aux.row[btn]) then
     self.aux.row[btn][3] = state
   end
 end
+
+-- Never called?
 
 function device:aux_col_led(btn,state)
   if (self.aux and self.aux.col and self.aux.col[btn]) then
@@ -244,40 +252,70 @@ function device:_send_cc(cc,z)
   if midi.devices[self.midi_id] then midi.devices[self.midi_id]:send(midi_msg) end
 end
 
-function device:rotate_ccw()
-  -- Rotate the grid
-  local new_grid_notes = {}
-  local row_offset = #self.grid_notes+1
-  for col = 1,#self.grid_notes[1] do
-    new_grid_notes[row_offset-col] = {}
-    for row = 1,#self.grid_notes do
-      --print (row_offset-col,',',row,' -- ',row,',',col)
-      new_grid_notes[row_offset-col][row] = self.grid_notes[row][col]
+-- Arbitrary 90° Grid Rotation function
+
+function device:rotate_grid(direction, matrix)
+
+  local rotated_matrix = {}
+
+  local function col(t)
+    local i, h = 0, #t
+    return function ()
+      i = i + 1
+      local column = {}
+      for j = 1, h do
+        local val = t[j][i]
+        if not val then return end
+        column[j] = val
+      end
+      return i, column
     end
   end
-  self.grid_notes = new_grid_notes
-  
-  --Rotate the Aux buttons
-  --Unpack Quick&Dirty copy
-  local new_aux_row = {table.unpack(self.aux.col)}
-  local new_aux_col = {}
-  
-  
-  --Flip the aux column, otherwise it will be upside down
-  for i=#self.aux.row, 1, -1 do
-    if self.aux.row[i] == nil then print("no aux row btn #",i) end
-  	new_aux_col[#new_aux_col+1] = { self.aux.row[i][1], self.aux.row[i][2], self.aux.row[i][3] }
-   end
-  
-  --[[Copy the aux column, otherwise it will be upside down
-  for i=1,#self.aux.col do
-    if self.aux.col[i] == nil then print("no aux row btn #",i) end
-  	new_aux_row[#new_aux_row+1] = { self.aux.col[i][1], self.aux.col[i][2], self.aux.col[i][3] }
-  end
-  ]]
 
-  self.aux.row = new_aux_row
-  self.aux.col = new_aux_col
+  local function reverse(t)
+    local n = #t
+    for i = 1, math.floor(n / 2) do
+      local j = n - i + 1
+      t[i], t[j] = t[j], t[i]
+    end
+    return t
+  end
+
+  local function rotateClockwise(t)
+    local t2 = {}
+    for i, column in col(t) do
+      t2[i] = reverse(column)
+    end
+    return t2
+  end
+
+  local function rotateAntiClockwise(t)
+    local t2 = {}
+    for i, column in col(t) do
+      t2[i] = column
+    end
+    return reverse(t2)
+  end
+
+    -- Actual Rotation of the grid. Could be more elegant. Currently passed an index from parameters and rotated. 1 == 0, 2 == 90, 3 == 180, 4 == 270 
+
+  if (direction == 4) then
+    rotated_matrix = rotateAntiClockwise(matrix)
+  elseif (direction == 2) then
+    rotated_matrix = rotateClockwise(matrix)
+  elseif (direction == 3) then
+    rotated_matrix = rotateClockwise(rotateClockwise(matrix))
+  else
+    return matrix
+  end
+
+  return rotated_matrix  
+end
+
+-- todo
+
+function device:rotate_aux(direction)
+
 end
 
 function device:create_rev_lookups()
@@ -289,8 +327,6 @@ function device:create_rev_lookups()
   end
   
   --Create reverse lookup for aux col and row
-  if self.aux and self.aux.cc_lookup == nil then self.aux.cc_lookup = {} end
-  if self.aux and self.aux.note_lookup == nil then self.aux.note_lookup = {} end  
   if self.aux.row then
     for btn_number,btn_meta in ipairs(self.aux.row) do
       if btn_meta[1] == 'cc' then
