@@ -39,12 +39,21 @@ local supported_devices = {
     
     -- Ableton Push 2
     { midi_base_name= 'ableton push 2 1',          device_type='push2'   },
+
+    -- Ableton Push 3
+    -- Port 1 is the primary MIDI port on most OS; port names vary by platform.
+    { midi_base_name= 'ableton push 3 1',          device_type='push3'   },
+    { midi_base_name= 'ableton push 3 live port',   device_type='push3'   },
+    { midi_base_name= 'ableton push 3 user port',   device_type='push3'   },
     
     -- Linnstrument
     { midi_base_name= 'linnstrument midi',          device_type='linnstrument'   },
 
     -- Synthstrom Deluge
     { midi_base_name = 'deluge 1', device_type='deluge' },
+
+    -- Midiplus SmartPad
+    { midi_base_name = 'smartpad', device_type='smartpad' },
 
   }
 }

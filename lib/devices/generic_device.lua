@@ -69,6 +69,9 @@ function device:_init(vgrid, device_number, device_count)
   
   -- Reset device
   self:_reset()
+
+  -- Force a full redraw on first refresh to clear any stale hardware state
+  self.force_full_refresh = true
 end
 
 function device:create_quad_handers(quad_count)
