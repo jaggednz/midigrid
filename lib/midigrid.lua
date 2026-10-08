@@ -34,11 +34,25 @@ local midigrid = {
   key = nil,
 }
 
-function midigrid:init(layout, rotate_second, palette_name)
+function midigrid:init(layout, rotations, palette_name)
   self.vgrid:init(layout)
   self.cols = self.vgrid.width
   self.rows = self.vgrid.height
-  self.rotate_second_device = rotate_second
+
+  -- New API: a table of per-device rotations in 90-degree CCW turns.
+  -- Backward compatibility: callers may still pass the old boolean
+  -- rotate_second_device value.
+  if type(rotations) == "table" then
+    self.device_rotations = {}
+    for device_number = 1,4 do
+      self.device_rotations[device_number] = (rotations[device_number] or 0) % 4
+    end
+    self.rotate_second_device = nil
+  else
+    self.device_rotations = { 0, rotations and 1 or 0, 0, 0 }
+    self.rotate_second_device = rotations
+  end
+
   self.palette_name = palette_name
 end
 
@@ -165,10 +179,18 @@ function midigrid._load_midi_devices(midi_devs)
     print("Loading midi device type:" .. midi_device_type .. " on midi port " .. midi_id)
     local device = include('midigrid/lib/devices/'..midi_device_type)
     device.midi_id = midi_id
-    -- Apply the mod-level rotate setting to the device (only when explicitly set)
+    device.midi_name = midi.devices[midi_id] and midi.devices[midi_id].name or tostring(midi_id)
+
+    -- Apply per-device rotation settings.  generic_device:_init() selects the
+    -- value for the device number assigned by vgrid.
+    device.device_rotations = midigrid.device_rotations
+
+    -- Keep the legacy setting available for third-party device drivers that
+    -- still inspect it directly.
     if midigrid.rotate_second_device ~= nil then
       device.rotate_second_device = midigrid.rotate_second_device
     end
+
     -- Apply the palette setting (Gen3 RGB devices)
     if palette_name and device.rgb_lut then
       device.rgb_lut = include('midigrid/lib/devices/palettes/' .. palette_name)

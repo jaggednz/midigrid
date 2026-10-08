@@ -14,7 +14,8 @@ local device={
   note_to_grid_lookup = {}, -- Intentionally left empty
   width=8,
   height=8,
-  rotate_second_device=true,
+  rotate_second_device=true, -- legacy compatibility
+  device_rotations=nil,
 
   vgrid={},
   midi_id = 1,
@@ -47,22 +48,36 @@ end
 
 function device:_init(vgrid,device_number)
   self.vgrid = vgrid
-  
-  --if (self.)
-  
-  if (device_number == 2 and self.rotate_second_device) then
+
+  local rotation = 0
+
+  if type(self.device_rotations) == "table" then
+    rotation = self.device_rotations[device_number] or 0
+  elseif device_number == 2 and self.rotate_second_device then
+    -- Backward compatibility for callers using the old boolean setting.
+    rotation = 1
+  end
+
+  rotation = math.floor(tonumber(rotation) or 0) % 4
+
+  for _ = 1,rotation do
     self:rotate_ccw()
   end
-  
+
+  if rotation > 0 then
+    print("midigrid: device " .. device_number
+          .. " rotated " .. (rotation * 90) .. " degrees CCW")
+  end
+
   -- Create reverse lookup tables for device
   self:create_rev_lookups()
-  
-  -- Tabls for aux button handlers
+
+  -- Tables for aux button handlers
   self.aux.row_handlers = {}
   self.aux.col_handlers = {}
-  
+
   self:create_quad_handers(#vgrid.quads)
-  
+
   -- Reset device
   self:_reset()
 
@@ -281,6 +296,14 @@ function device:rotate_ccw()
 end
 
 function device:create_rev_lookups()
+  -- Rebuild lookup tables from scratch so reconnects and rotations cannot
+  -- leave stale note/CC mappings behind.
+  self.note_to_grid_lookup = {}
+  if self.aux then
+    self.aux.cc_lookup = {}
+    self.aux.note_lookup = {}
+  end
+
   --Create reverse lookup for grid notes
   for col = 1,self.height do
     for row = 1,self.width do

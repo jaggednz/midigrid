@@ -61,9 +61,17 @@ local supported_devices = {
 function supported_devices.find_midi_device_type(midi_device)
   --print('finding device: ' .. midi_device.id .. " with name " .. midi_device.name)
   local sysex_ident_resp = nil
+  local midi_name = string.lower(midi_device.name)
   -- TODO get response to sysex indentify call
 
-  if string.lower(midi_device.name):find 'launchpad mini %d' then
+  -- norns appends " 2", " 3", etc. when more identical USB MIDI devices
+  -- are connected. Match any Launchpad Mini MK3 interface 2 instance.
+  if midi_name == 'launchpad mini mk3 2'
+      or midi_name:match('^launchpad mini mk3 2 %d+$') then
+    return 'launchpad_mini_mk3'
+  end
+
+  if midi_name:find 'launchpad mini %d' then
     -- Old launchpad mini's have user set hardware ID 1 - 16:
     -- e.g. ID 4 appears as midi_device.name "Launchpad Mini 4"
     return 'launchpad'
@@ -74,7 +82,7 @@ function supported_devices.find_midi_device_type(midi_device)
       end
       -- Fall back to midi name matching
       -- TODO strip / ignore device name suffix for multiple devices
-      if (device_def.midi_base_name == string.lower(midi_device.name)) then return device_def.device_type end
+      if (device_def.midi_base_name == midi_name) then return device_def.device_type end
     end
     return nil
   end

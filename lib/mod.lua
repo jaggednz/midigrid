@@ -47,6 +47,10 @@ end
 
 local grid_sizes = { "64", "128", "256" }
 
+-- Physical orientation of each attached controller.  The value stored in state
+-- is the number of 90-degree CCW turns from the device's normal orientation.
+local rotation_names = { "0", "90 CCW", "180", "90 CW" }
+
 -- The available palettes (for Launchpad Gen 3 RGB devices)
 
 local palette_names = {
@@ -60,9 +64,11 @@ local palette_names = {
 
 local state = {
   midigrid_active = true,  -- is midigrid active?
-  grid_size = 2,           -- size of midigrid.  default 2 -> grid 128
-  rotate_second_device = true, -- rotate the second device 90 degrees CCW
-  palette = 1,             -- palette index.  default 1 -> vintage_amber
+  grid_size = 2,           -- size of midigrid. default 2 -> grid 128
+  -- Per-device physical orientation, expressed as 90-degree CCW turns.
+  -- Defaults preserve the historical "rotate second device" behaviour.
+  device_rotations = { 0, 1, 0, 0 },
+  palette = 1,             -- palette index. default 1 -> vintage_amber
   dirty = false            -- has the state been changed since last persisted?
 }
 
@@ -113,7 +119,7 @@ fake_grid.connect = function(idx)
     if state.midigrid_active then
       log("Connecting to midigrid")
       local midigrid = include "midigrid/lib/midigrid"
-      midigrid:init(grid_sizes[state.grid_size], state.rotate_second_device, palette_names[state.palette])
+      midigrid:init(grid_sizes[state.grid_size], state.device_rotations, palette_names[state.palette])
 
       reentrance_guard = true
       local g = midigrid.connect(idx)
@@ -165,17 +171,21 @@ local function init_params()
                           state.grid_size = v
                       end)
 
-  m.params:add_option("rotate_second_device", "rotate second device",
-                      {"on", "off"},
-                      state.rotate_second_device and 1 or 2)
-  m.params:set_action("rotate_second_device",
-                      function(v)
-                          local rotate = v == 1 and true or false
-                          if state.rotate_second_device ~= rotate then
-                              state.dirty = true
-                          end
-                          state.rotate_second_device = rotate
-                      end)
+  for device_number = 1,4 do
+    local d = device_number
+    local param_id = "device_" .. d .. "_rotation"
+    m.params:add_option(param_id, "device " .. d .. " rotation",
+                        rotation_names,
+                        (state.device_rotations[d] or 0) + 1)
+    m.params:set_action(param_id,
+                        function(v)
+                            local rotation = v - 1
+                            if state.device_rotations[d] ~= rotation then
+                                state.dirty = true
+                            end
+                            state.device_rotations[d] = rotation
+                        end)
+  end
 
   m.params:add_option("palette", "palette",
                       palette_names,
@@ -222,15 +232,25 @@ mod.hook.register("system_post_startup", "midigrid startup", function()
   local t, error = tab.load(state_file)
 
   if not error then
+    local migrated = false
+
     state.midigrid_active = t.midigrid_active
     state.grid_size = t.grid_size
-    if t.rotate_second_device ~= nil then
-      state.rotate_second_device = t.rotate_second_device
+    if type(t.device_rotations) == "table" then
+      for device_number = 1,4 do
+        if t.device_rotations[device_number] ~= nil then
+          state.device_rotations[device_number] = t.device_rotations[device_number] % 4
+        end
+      end
+    elseif t.rotate_second_device ~= nil then
+      -- Migrate the legacy boolean setting to the new per-device model.
+      state.device_rotations = { 0, t.rotate_second_device and 1 or 0, 0, 0 }
+      migrated = true
     end
     if t.palette ~= nil then
       state.palette = t.palette
     end
-    state.dirty = false
+    state.dirty = migrated
   else
     log("Could not load midigrid configuration: " .. error)
   end
@@ -274,5 +294,6 @@ api.get_state = function()
 end
 
 api.palette_names = palette_names
+api.rotation_names = rotation_names
 
 return api

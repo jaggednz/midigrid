@@ -59,32 +59,53 @@ function Vgrid:init(layout)
   end
 end
 
+local function natural_sort_key(name)
+  -- Pad digit runs so duplicate-device suffixes sort naturally:
+  -- "... 2", "... 2 2", "... 2 3", ..., "... 2 10".
+  return string.lower(name or ""):gsub("(%d+)", function(n)
+    return string.format("%08d", tonumber(n))
+  end)
+end
+
 function Vgrid:attach_devices(compatible_devices)
-  local device_number
-  local device_count = tab.count(compatible_devices)
+  local ordered_devices = {}
+
+  for _, dev in pairs(compatible_devices) do
+    table.insert(ordered_devices, dev)
+  end
+
+  table.sort(ordered_devices, function(a, b)
+    local a_key = natural_sort_key(a.midi_name)
+    local b_key = natural_sort_key(b.midi_name)
+
+    if a_key == b_key then
+      return (a.midi_id or 0) < (b.midi_id or 0)
+    end
+
+    return a_key < b_key
+  end)
+
+  local quad_count = tab.count(self.quads)
+
   print('Attaching devices:')
-  for dev_id, dev in pairs(compatible_devices) do
-    
-    
-    -- Yes, Midi grid mounts devices "backwards"
-    device_number = device_count - tab.count(self.devices)
-    
-    -- Assign to quads based on number of currently attached devices
-    -- e.g. dev1 = quad1, dev2 = quad2, ...
-    if (device_count > 1) then
-      dev.current_quad = (device_number % tab.count(self.quads))+1
-    end
-    
-    table.insert(self.devices,dev)
-  
-    -- Set call back for real device events to become virtual grid events
+  for device_number, dev in ipairs(ordered_devices) do
+    -- Stable device/quadrant assignment:
+    -- device 1 -> quad 1, device 2 -> quad 2, etc.
+    dev.current_quad = ((device_number - 1) % quad_count) + 1
+    table.insert(self.devices, dev)
+
+    print("device " .. device_number
+          .. " -> quad " .. dev.current_quad
+          .. " (" .. (dev.midi_name or ("midi " .. dev.midi_id)) .. ")")
+
+    -- Set callback for real device events to become virtual grid events.
     midi.devices[dev.midi_id].event = function(e) dev.event(dev,self,e) end
-    
-    dev._key_callback = function(dev_quad,dev_x,dev_y,state) 
-      self:_handle_grid_key(dev_quad,dev_x,dev_y,state) 
+
+    dev._key_callback = function(dev_quad,dev_x,dev_y,state)
+      self:_handle_grid_key(dev_quad,dev_x,dev_y,state)
     end
-  
-    -- Call device init
+
+    -- Call device init after its quadrant has been assigned.
     dev:_init(self,device_number)
   end
 end
