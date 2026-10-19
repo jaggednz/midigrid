@@ -94,6 +94,16 @@ local function get_all_btn_ccs(self)
   return ccs
 end
 
+-- The grid LED list follows grid_notes, which turning the device changes.
+function launchpad:_after_rotation()
+  self._grid_leds = {}
+  for y = 1, 8 do
+    for x = 1, 8 do
+      self._grid_leds[#self._grid_leds + 1] = self.grid_notes[y][x]
+    end
+  end
+end
+
 -----------------------------------------------------------------------
 -- Override _init: build SysEx header and add MIDI send blocking
 -----------------------------------------------------------------------
@@ -112,11 +122,7 @@ function launchpad:_init(vgrid, device_number)
   _parent_init(self, vgrid, device_number)
 
   -- Now populate after parent init (which may rotate grid_notes)
-  for y = 1, 8 do
-    for x = 1, 8 do
-      self._grid_leds[#self._grid_leds + 1] = self.grid_notes[y][x]
-    end
-  end
+  self:_after_rotation()
 
   -- Block all non-SysEx MIDI: norns may send note_off, CC resets,
   -- or transport messages on clock stop that interfere with
@@ -212,44 +218,97 @@ function launchpad:_reset()
 end
 
 -----------------------------------------------------------------------
--- Override _update_led: use SysEx RGB instead of palette velocity
+-- SysEx message buffer
+--
+-- Every refresh sends at least one SysEx per device, 30 or more times a
+-- second.  Building a new table for each one made a few KB of garbage per
+-- frame (megabytes a minute with two devices), so each device keeps one
+-- message table and refills it.  norns copies the bytes when sending.
 -----------------------------------------------------------------------
-function launchpad._update_led(self, x, y, z)
-  if y < 1 or #self.grid_notes < y or x < 1 or #self.grid_notes[y] < x then
-    return
-  end
-  local led = self.grid_notes[y][x]
-  local rgb = self.rgb_lut[clamp_rgb_index(z)]
-  local dev = midi.devices[self.midi_id]
-  if dev then
-    dev:send({
-      table.unpack(self.syx_rgb),
-      0x03, led, rgb[1], rgb[2], rgb[3],
-      0xF7
-    })
-  end
+local function msg_begin(self)
+  local m = self._msg
+  if not m then m = {}; self._msg = m; self._msg_len = 0 end
+  local h = self.syx_rgb
+  for i = 1, #h do m[i] = h[i] end
+  return m, #h
+end
+
+-- one LED spec: 0x03 (RGB), LED index, r, g, b
+local function msg_rgb(m, n, led, rgb)
+  m[n + 1] = 0x03; m[n + 2] = led
+  m[n + 3] = rgb[1]; m[n + 4] = rgb[2]; m[n + 5] = rgb[3]
+  return n + 5
+end
+
+local function msg_send(self, dev, m, n)
+  n = n + 1
+  m[n] = 0xF7
+  for k = n + 1, self._msg_len do m[k] = nil end   -- drop the tail of a longer message
+  self._msg_len = n
+  dev:send(m)
 end
 
 -----------------------------------------------------------------------
 -- Helper: append aux button RGB specs to a SysEx message
 -----------------------------------------------------------------------
-local function append_aux_specs(self, m)
-  local lut = self.rgb_lut
-  local function add_btn(button)
-    if button[3] == nil or type(button[3]) ~= "number" then return end
-    local rgb = lut[clamp_rgb_index(button[3])]
-    m[#m + 1] = 0x03
-    m[#m + 1] = button[2]   -- CC number = LED index
-    m[#m + 1] = rgb[1]
-    m[#m + 1] = rgb[2]
-    m[#m + 1] = rgb[3]
+local function append_buttons(m, n, lut, list)
+  if not list then return n end
+  for _, button in ipairs(list) do
+    if type(button[3]) == "number" then
+      n = msg_rgb(m, n, button[2], lut[clamp_rgb_index(button[3])])   -- CC number = LED index
+    end
   end
-  if self.aux.row then
-    for _, button in ipairs(self.aux.row) do add_btn(button) end
+  return n
+end
+
+local function append_aux_specs(self, m, n)
+  n = append_buttons(m, n, self.rgb_lut, self.aux.row)
+  return append_buttons(m, n, self.rgb_lut, self.aux.col)
+end
+
+-----------------------------------------------------------------------
+-- Override _update_led: use SysEx RGB instead of palette velocity
+--
+-- (The header used to be spliced in with table.unpack in the middle of a
+-- table constructor, which keeps only its first byte: the Launchpad got
+-- a message without its SysEx header and ignored it.  Nothing that drew
+-- LEDs one at a time showed, e.g. the placing lights of "place devices".)
+-----------------------------------------------------------------------
+function launchpad._update_led(self, x, y, z)
+  if y < 1 or #self.grid_notes < y or x < 1 or #self.grid_notes[y] < x then
+    return
   end
-  if self.aux.col then
-    for _, button in ipairs(self.aux.col) do add_btn(button) end
+  local dev = midi.devices[self.midi_id]
+  if dev then
+    local m, n = msg_begin(self)
+    n = msg_rgb(m, n, self.grid_notes[y][x], self.rgb_lut[clamp_rgb_index(z)])
+    msg_send(self, dev, m, n)
   end
+end
+
+-----------------------------------------------------------------------
+-- fill: every grid LED at one level, in one message (placing lights).
+-- The rim buttons go dark: their quad lights describe the arrangement
+-- being replaced.  The full redraw after placing lights them again.
+-----------------------------------------------------------------------
+local function rim_off(m, n, list, off)
+  if not list then return n end
+  for _, button in ipairs(list) do n = msg_rgb(m, n, button[2], off) end
+  return n
+end
+
+function launchpad:fill(z)
+  local dev = midi.devices[self.midi_id]
+  if not dev then return end
+  local m, n = msg_begin(self)
+  local rgb = self.rgb_lut[clamp_rgb_index(z)]
+  for y = 1, #self.grid_notes do
+    for x = 1, #self.grid_notes[y] do n = msg_rgb(m, n, self.grid_notes[y][x], rgb) end
+  end
+  local off = self.rgb_lut[1]
+  n = rim_off(m, n, self.aux.row, off)
+  n = rim_off(m, n, self.aux.col, off)
+  msg_send(self, dev, m, n)
 end
 
 -----------------------------------------------------------------------
@@ -274,35 +333,25 @@ function launchpad:refresh(quad)
   local dev = midi.devices[self.midi_id]
   if dev then
     if self.force_full_refresh then
-      local m = { table.unpack(self.syx_rgb) }
+      local m, n = msg_begin(self)
       for y = 1, quad.height do
         for x = 1, quad.width do
-          local led = self.grid_notes[y][x]
-          local rgb = self.rgb_lut[clamp_rgb_index(quad.buffer[x][y])]
-          m[#m + 1] = 0x03
-          m[#m + 1] = led
-          m[#m + 1] = rgb[1]; m[#m + 1] = rgb[2]; m[#m + 1] = rgb[3]
+          n = msg_rgb(m, n, self.grid_notes[y][x], self.rgb_lut[clamp_rgb_index(quad.buffer[x][y])])
         end
       end
-      append_aux_specs(self, m)
-      m[#m + 1] = 0xF7
-      dev:send(m)
+      n = append_aux_specs(self, m, n)
+      msg_send(self, dev, m, n)
       self.force_full_refresh = false
     else
-      if quad.frozen_update and quad.frozen_update.update_count > 0 then
-        local m = { table.unpack(self.syx_rgb) }
-        for u = 1, quad.frozen_update.update_count do
-          local x = quad.frozen_update.updates_x[u]
-          local y = quad.frozen_update.updates_y[u]
-          local led = self.grid_notes[y][x]
-          local rgb = self.rgb_lut[clamp_rgb_index(quad.buffer[x][y])]
-          m[#m + 1] = 0x03
-          m[#m + 1] = led
-          m[#m + 1] = rgb[1]; m[#m + 1] = rgb[2]; m[#m + 1] = rgb[3]
+      local f = quad.frozen_update
+      if f and f.update_count > 0 then
+        local m, n = msg_begin(self)
+        for u = 1, f.update_count do
+          local x, y = f.updates_x[u], f.updates_y[u]
+          n = msg_rgb(m, n, self.grid_notes[y][x], self.rgb_lut[clamp_rgb_index(quad.buffer[x][y])])
         end
-        append_aux_specs(self, m)
-        m[#m + 1] = 0xF7
-        dev:send(m)
+        n = append_aux_specs(self, m, n)
+        msg_send(self, dev, m, n)
       else
         -- No grid changes, still push aux button states
         self:send_aux_sysx(dev)
@@ -319,10 +368,9 @@ end
 -- Assumes update_quad_btn_aux() has already been called if needed.
 -----------------------------------------------------------------------
 function launchpad:send_aux_sysx(dev)
-  local m = { table.unpack(self.syx_rgb) }
-  append_aux_specs(self, m)
-  m[#m + 1] = 0xF7
-  dev:send(m)
+  local m, n = msg_begin(self)
+  n = append_aux_specs(self, m, n)
+  msg_send(self, dev, m, n)
 end
 
 -----------------------------------------------------------------------

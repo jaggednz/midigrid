@@ -225,6 +225,22 @@ function midigrid:flush_palette(palette_name)
   self.vgrid:refresh()
 end
 
+-- Apply new per-device rotations to the connected devices at once (called
+-- from the mod menu), so the Launchpads turn without a script reconnecting.
+-- Devices are numbered as at connect (name order).
+function midigrid:apply_rotations(rotations)
+  if type(rotations) ~= "table" then return end
+  self.device_rotations = {}
+  for d = 1, 4 do self.device_rotations[d] = (rotations[d] or 0) % 4 end
+  local changed = false
+  for d, device in ipairs(self.vgrid.devices) do
+    device.device_rotations = self.device_rotations
+    if device.set_rotation and device:set_rotation(self.device_rotations[d]) then changed = true end
+  end
+  if changed then self.vgrid:refresh() end
+  return changed
+end
+
 function midigrid.setup_connect_handling()
     midigrid.core_midi_add = midi.add
     midigrid.core_midi_remove = midi.remove

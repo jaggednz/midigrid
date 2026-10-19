@@ -63,6 +63,7 @@ function device:_init(vgrid,device_number)
   for _ = 1,rotation do
     self:rotate_ccw()
   end
+  self.rotation = rotation        -- quarter turns applied (see set_rotation)
 
   if rotation > 0 then
     print("midigrid: device " .. device_number
@@ -83,6 +84,32 @@ function device:_init(vgrid,device_number)
 
   -- Force a full redraw on first refresh to clear any stale hardware state
   self.force_full_refresh = true
+end
+
+-- Turn a connected device to `rotation` quarter turns (CCW) at once, from the
+-- mod menu, without waiting for the next grid connect.  Returns true if it
+-- changed.
+function device:set_rotation(rotation)
+  rotation = math.floor(tonumber(rotation) or 0) % 4
+  local turns = (rotation - (self.rotation or 0)) % 4
+  if turns == 0 then return false end
+  for _ = 1, turns do self:rotate_ccw() end
+  self.rotation = rotation
+  -- The rim buttons carried their lights round with them: the old quad
+  -- buttons would stay lit beside the new ones.  Turn every rim light off;
+  -- the full refresh sends them all and lights the quad buttons again.
+  for _, list in ipairs({ self.aux.row or {}, self.aux.col or {} }) do
+    for _, button in ipairs(list) do
+      if type(button[3]) == "number" then button[3] = 0 end
+    end
+  end
+  self:create_rev_lookups()
+  self.aux.row_handlers = {}
+  self.aux.col_handlers = {}
+  if self.vgrid then self:create_quad_handers(#self.vgrid.quads) end
+  if self._after_rotation then self:_after_rotation() end
+  self.force_full_refresh = true
+  return true
 end
 
 function device:create_quad_handers(quad_count)
@@ -113,6 +140,14 @@ function device._update_led(self,x,y,z)
   local midi_msg = {0x90,note,vel}
   --TODO: do we accept a few error msg on failed unmount and check device status in :refresh
   if midi.devices[self.midi_id] then midi.devices[self.midi_id]:send(midi_msg) end
+end
+
+-- Every grid LED at one level (the placing lights).  Devices that can send
+-- them all in one message override this.
+function device:fill(z)
+  for y = 1, #self.grid_notes do
+    for x = 1, #self.grid_notes[y] do self:_update_led(x, y, z) end
+  end
 end
 
 function device.event(self,vgrid,event)
@@ -205,7 +240,7 @@ function device:update_quad_btn_aux()
   -- TODO would be good to only update on dirty AUX?
   if self.vgrid and #self.vgrid.quads > 1 and self.quad_switching_enabled == true then
     for q = 1,#self.vgrid.quads do
-      if self.current_quad == q then z = 15 else z = 2 end
+      local z = (self.current_quad == q) and 15 or 2
       if self.aux.row and #self.aux.row >= 4 then
         self.aux.row[q][3] = z
       end

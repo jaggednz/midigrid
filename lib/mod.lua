@@ -258,6 +258,7 @@ local function init_params()
                             local rotation = v - 1
                             if state.device_rotations[d] ~= rotation then
                                 state.dirty = true
+                                state.rotations_dirty = true
                             end
                             state.device_rotations[d] = rotation
                         end)
@@ -290,6 +291,11 @@ local function init_params()
 
       save_state()
 
+      -- Turn the connected devices to their new rotations without a restart
+      if state.rotations_dirty and _ENV.midigrid and state.midigrid_active then
+        log("applying rotations")
+        _ENV.midigrid:apply_rotations(state.device_rotations)
+      end
       -- Flush palette changes to connected devices without requiring a restart
       if _ENV.midigrid and state.midigrid_active then
         local new_palette = palette_names[state.palette]
@@ -298,6 +304,7 @@ local function init_params()
       end
     end
     state.dirty = false
+    state.rotations_dirty = false
   end
 end
 

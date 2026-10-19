@@ -200,10 +200,7 @@ end
 function Vgrid:_draw_placing()
   local p = self.placing
   for _, dev in pairs(self.devices) do
-    local level = p.taken[dev] and 15 or 3
-    for y = 1, dev.height or 8 do
-      for x = 1, dev.width or 8 do dev:_update_led(x, y, level) end
-    end
+    dev:fill(p.taken[dev] and 15 or 3)
   end
 end
 
@@ -247,7 +244,10 @@ function Vgrid:set_all(z)
 end
 
 function Vgrid:refresh(device_id)
-  if self.placing then return end   -- the devices show placing lights meanwhile
+  if self.placing then                -- the devices show placing lights meanwhile
+    for _, quad in pairs(self.quads) do quad:reset_updates() end   -- the script's changes: redrawn in full afterwards
+    return
+  end
   for qid,quad in pairs(self.quads) do
     --print('vgrid refresh ' .. qid)
     
@@ -287,18 +287,23 @@ function Vgrid.new_quad(id,width,height,offset_x,offset_y)
     end
   end
   
+  -- The changes since the last refresh, for the devices to send.  The same
+  -- tables are used every refresh (new ones each time made garbage 30 or
+  -- more times a second); they are only read between freeze and reset.
   function q:freeze_updates()
-    self.frozen_update = {
-      update_count = self.update_count,
-      updates_x = self.updates_x,
-      updates_y = self.updates_y
-    }
+    local f = self.frozen_update
+    if not f then f = {}; self.frozen_update = f end
+    f.update_count = self.update_count
+    f.updates_x = self.updates_x
+    f.updates_y = self.updates_y
   end
-  
+
   function q:reset_updates()
+    local ux, uy = self.updates_x, self.updates_y
+    for k = #ux, 1, -1 do ux[k] = nil end
+    for k = #uy, 1, -1 do uy[k] = nil end
     self.update_count = 0
-    self.updates_x = {}
-    self.updates_y = {}
+    if self.frozen_update then self.frozen_update.update_count = 0 end
   end
 
   function q:_relative_set(rx,ry,qz)
